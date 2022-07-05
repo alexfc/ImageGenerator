@@ -1,0 +1,21 @@
+[
+  {
+    "name": "box-nobrand",
+    "image": "general.png",
+    "title": "New Part",
+    "x": 137,
+    "y": 180,
+    "imageWidth": 900,
+    "imageHeight": 540,
+    "labelWidth": 240,
+    "labelHeight": 95,
+    "font-size": 19
+  },
+  {
+    "name": "ad",
+    "x": 100,
+    "y": 100,
+    "image": "general.png",
+    "title": "New Part"
+  }
+]

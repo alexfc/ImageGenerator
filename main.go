@@ -1,8 +1,11 @@
 package main
 
 import (
+	"ImageGenerator/internal/apiclient"
 	conf "ImageGenerator/internal/config"
 	gen "ImageGenerator/internal/generator"
+	"context"
+	"github.com/go-redis/redis/v8"
 	"github.com/gorilla/mux"
 	"gopkg.in/gographics/imagick.v3/imagick"
 	"gopkg.in/yaml.v2"
@@ -65,13 +68,42 @@ func parseParams(r *http.Request) gen.GenerationParams {
 	}
 }
 
-//var ctx = context.Background()
+func cacheWarmer(rdb *redis.Client) error {
+	manufacturers, err := apiclient.GetManufacturers()
+	offset := 0
+
+	if err != nil {
+		return err
+	}
+
+	for _, manufacturer := range manufacturers {
+		offset = 0
+		for true {
+			items, _ := apiclient.GetItems(manufacturer, offset, 10000)
+			pipe := rdb.Pipeline()
+			for _, item := range items {
+				val := item.FormattedNumber + "##" + item.Name
+				pipe.Set(ctx, item.Number, val, 0)
+				offset = item.Id
+			}
+			pipe.Exec(ctx)
+
+			if len(items) < 10000 {
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
+func cacheClear(rdb *redis.Client) {
+	rdb.FlushDB(ctx)
+}
+
+var ctx = context.Background()
 
 func main() {
-	//data := []byte{'[[40089262,"0308000421","0308000421","HOSEENG SPEED CONTR",120],[40089263,"0308100820","0308100820","HOSE WATER",110]]'}
-
-	//os.Exit(0)
-
 	imagick.Initialize()
 	defer imagick.Terminate()
 
@@ -81,38 +113,23 @@ func main() {
 		panic("config not valid")
 	}
 
-	//rdb := redis.NewClient(&redis.Options{
-	//	Addr:     conf.Redis.Host + ":" + conf.Redis.Port,
-	//	Password: conf.Redis.Pass, // no password set
-	//	DB:       conf.Redis.DB,   // use default DB
-	//})
-
-	//manufacturers, err := apiclient.GetManufacturers()
-	//
-	//for _, manufacturer := range manufacturers {
-	//	for true {
-	//		items, _ := apiclient.GetItems(manufacturer, 0, 10000)
-	//		//pipe := rdb.Pipeline()
-	//		for _, item := range items {
-	//			fmt.Println(item)
-	//			os.Exit(0)
-	//			//key := item[1]
-	//			//pipe.Set(ctx, )
-	//		}
-	//		//pipe.Exec(ctx)
-	//
-	//		if len(items) < 10000 {
-	//			break
-	//		}
-	//	}
-	//}
-	//
-	//rdb.Set(ctx, "helloWorld", 1, 0)
-	//val := rdb.Get(ctx, "helloWorld")
-
-	//fmt.Println(val)
+	rdb := redis.NewClient(&redis.Options{
+		Addr:     conf.Redis.Host + ":" + conf.Redis.Port,
+		Password: conf.Redis.Pass,
+		DB:       conf.Redis.DB,
+	})
 
 	router := mux.NewRouter()
+
+	router.HandleFunc("/cache-warm", func(w http.ResponseWriter, r *http.Request) {
+		cacheWarmer(rdb)
+		w.Write([]byte("Done"))
+	})
+
+	router.HandleFunc("/cache-clear", func(w http.ResponseWriter, r *http.Request) {
+		cacheClear(rdb)
+		w.Write([]byte("Done"))
+	})
 
 	router.HandleFunc("/{style:[a-z-]+}/{lang:[a-z]+}/{zoom:[0-9x]+}/{manufacturer:[a-z]+}/{oem:[a-zA-Z0-9-]+}.png", func(w http.ResponseWriter, r *http.Request) {
 		params := parseParams(r)

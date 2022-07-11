@@ -2,7 +2,6 @@ package apiclient
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strconv"
@@ -55,7 +54,8 @@ func GetManufacturers() (map[int]Manufacturer, error) {
 }
 
 func GetItems(manufacturer Manufacturer, offset int, limit int) ([]Item, error) {
-	var items map[interface{}]Item
+	var data [][]interface{}
+	var items []Item
 
 	query := "?manufacturer=" + manufacturer.Slug + "&offset_id=" + strconv.Itoa(offset) + "&limit=" + strconv.Itoa(limit)
 	url := getMethodUrl(API_METHOD_ITEMS) + query
@@ -66,11 +66,23 @@ func GetItems(manufacturer Manufacturer, offset int, limit int) ([]Item, error) 
 	var jsonObj map[string]map[string]json.RawMessage
 
 	json.Unmarshal(body, &jsonObj)
-	json.Unmarshal(jsonObj["result"]["rows"], &items)
+	json.Unmarshal(jsonObj["result"]["rows"], &data)
 
-	t := items[0]
+	for _, item := range data {
+		name, ok := item[3].(string)
 
-	fmt.Println(t)
+		if !ok {
+			name = ""
+		}
 
-	return []Item{}, nil
+		itemData := Item{
+			Id:              int(item[0].(float64)),
+			Number:          item[1].(string),
+			FormattedNumber: item[2].(string),
+			Name:            name,
+		}
+		items = append(items, itemData)
+	}
+
+	return items, nil
 }

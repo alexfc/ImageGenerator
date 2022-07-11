@@ -1,0 +1,22 @@
+styles:
+    - name: "box-nobrand"
+      image: "general.png"
+      title: "New Part"
+      x: 137
+      y: 190
+      imageWidth: 900
+      imageHeight: 540
+      labelWidth: 240
+      labelHeight: 95
+      fontSize: 19
+    - ad:
+      name: "ad"
+      image: "general.png"
+      title: "New Part"
+      x: 100
+      y: 100
+redis:
+    host: localhost
+    port: 6379
+    db: 0
+    pass:

@@ -3,12 +3,13 @@ styles:
       image: "general.png"
       title: "New Part"
       x: 137
-      y: 190
+      y: 180
       imageWidth: 900
       imageHeight: 540
       labelWidth: 240
       labelHeight: 95
-      fontSize: 19
+      titleFontSize: 19
+      oemFontSize: 25
     - ad:
       name: "ad"
       image: "general.png"
@@ -16,7 +17,7 @@ styles:
       x: 100
       y: 100
 redis:
-    host: localhost
+    host: redis
     port: 6379
     db: 0
     pass:

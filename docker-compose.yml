@@ -1,0 +1,42 @@
+version: '3'
+
+services:
+  ### Go App ##################################
+  goapp:
+    build:
+      context: .
+      dockerfile: ./docker/goapp/Dockerfile
+    extra_hosts:
+      - "dockerhost:${DOCKER_HOST_IP}"
+    environment:
+      - PHP_IDE_CONFIG=serverName=docker
+    ports:
+      - "5555:5555"
+    expose:
+      - "5555"
+    working_dir: /app
+
+  ### NGINX Server #########################################
+  nginx:
+    build:
+      context: ./docker/nginx
+    restart: always
+    volumes:
+      - ./docker/nginx/sites/:/etc/nginx/conf.d
+      - ./docker/nginx/ssl/:/etc/nginx/ssl
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - goapp
+
+  ### Redis ################################################
+  redis:
+    build: ./docker/redis
+    user: redis
+    volumes:
+      - ~/.docker/data/redis:/data
+    ports:
+      - "6379:6379"
+    expose:
+      - "6379"

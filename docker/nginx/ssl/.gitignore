@@ -1,0 +1,5 @@
+*.crt
+*.csr
+*.key
+!s25.dev.crt
+!s25.dev.key

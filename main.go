@@ -5,6 +5,7 @@ import (
 	conf "ImageGenerator/internal/config"
 	gen "ImageGenerator/internal/generator"
 	"context"
+	"fmt"
 	"github.com/go-redis/redis/v8"
 	"github.com/gorilla/mux"
 	"gopkg.in/gographics/imagick.v3/imagick"
@@ -77,6 +78,7 @@ func cacheWarmer(rdb *redis.Client) error {
 	}
 
 	for _, manufacturer := range manufacturers {
+		fmt.Println(manufacturer.Name)
 		offset = 0
 		for true {
 			items, _ := apiclient.GetItems(manufacturer, offset, 10000)
@@ -87,7 +89,7 @@ func cacheWarmer(rdb *redis.Client) error {
 				offset = item.Id
 			}
 			pipe.Exec(ctx)
-
+			fmt.Println(offset)
 			if len(items) < 10000 {
 				break
 			}
@@ -107,16 +109,16 @@ func main() {
 	imagick.Initialize()
 	defer imagick.Terminate()
 
-	conf, err := readConfig()
+	config, err := readConfig()
 
 	if err != nil {
 		panic("config not valid")
 	}
 
 	rdb := redis.NewClient(&redis.Options{
-		Addr:     conf.Redis.Host + ":" + conf.Redis.Port,
-		Password: conf.Redis.Pass,
-		DB:       conf.Redis.DB,
+		Addr:     config.Redis.Host + ":" + config.Redis.Port,
+		Password: config.Redis.Pass,
+		DB:       config.Redis.DB,
 	})
 
 	router := mux.NewRouter()
@@ -133,14 +135,26 @@ func main() {
 
 	router.HandleFunc("/{style:[a-z-]+}/{lang:[a-z]+}/{zoom:[0-9x]+}/{manufacturer:[a-z]+}/{oem:[a-zA-Z0-9-]+}.png", func(w http.ResponseWriter, r *http.Request) {
 		params := parseParams(r)
-		style := conf.GetStyle(params.Style)
+		style := config.GetStyle(params.Style)
 		filename, err := getFilename(params)
 
 		if err != nil {
 			//handle error
 		}
 
-		image, err := gen.GenerateImage(filename, style)
+		name := strings.Title(style.Name) + ", " + strings.Title(params.Vendor)
+		oem := params.OEM
+
+		val := rdb.Get(ctx, params.OEM).Val()
+
+		vals := strings.Split(val, "##")
+
+		if len(vals) == 2 {
+			oem = vals[0]
+			name = strings.Title(vals[1]) + ", " + strings.Title(params.Vendor)
+		}
+
+		image, err := gen.GenerateImage(filename, style, name, oem)
 
 		if err != nil {
 			panic(err)
